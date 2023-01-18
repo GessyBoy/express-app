@@ -32,4 +32,4 @@ const database = mysql.createPool({
 
   });
 
-  module.export = database;
+  module.exports = database;
