@@ -1,35 +1,43 @@
 require("dotenv").config();
+
 const express = require("express");
-
 const app = express();
-
 app.use(express.json());
 
+const movieHandlers = require("./movieHandlers");
+const userHandlers = require("./userHandlers");
+const loginHandlers = require("./loginHandlers");
+const validator2 = require("./validator2");
+const { hashPassword, verifyPassword, verifyToken, verifyAccess } = require("./auth.js");
+
 const port = process.env.APP_PORT ?? 5000;
+
 const welcome = (req, res) => {
   res.send("Welcome to my favourite movie list");
 };
 
 app.get("/", welcome);
 
-const movieHandlers = require("./movieHandlers");
-const userHandlers = require("./userHandlers");
-const { validateMovie } = require("./validators.js");
-
-
-app.post("/api/movies", validateMovie, movieHandlers.postMovie);
-
 app.get("/api/movies", movieHandlers.getMovies);
 app.get("/api/movies/:id", movieHandlers.getMovieById);
-app.post("/api/movies", movieHandlers.postMovie);
-app.put("/api/movies/:id", movieHandlers.updateMovie);
-app.delete("/api/movies/:id", movieHandlers.deleteMovie);
 
 app.get("/api/users", userHandlers.getUsers);
-app.get("/api/users/:id", userHandlers.getUsersById);
-app.post("/api/users", userHandlers.postUser);
-app.put("/api/users/:id", userHandlers.putUser);
-app.delete("/api/users/:id", userHandlers.deleteUser);
+app.get("/api/users/:id", userHandlers.getUserById);
+
+app.post("/api/users", validator2.validateUserExpress, hashPassword, userHandlers.addUser);
+app.post("/api/login", userHandlers.getUserByEmailWithPassword, verifyPassword);
+
+app.use(verifyToken); // authentication wall : verifyToken is activated for each route after this line
+
+app.post("/api/movies", validator2.validateMovieExpress, movieHandlers.addMovie);
+app.put("/api/movies/:id", validator2.validateMovieExpress, movieHandlers.updateMovie);
+app.delete("/api/movies/:id", movieHandlers.deleteMovie);
+
+
+
+
+app.put("/api/users/:id", verifyAccess, validator2.validateUserExpress, hashPassword, userHandlers.updateUser);
+app.delete("/api/users/:id", verifyAccess, userHandlers.deleteUser);
 
 
 app.listen(port, (err) => {

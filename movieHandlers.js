@@ -1,11 +1,32 @@
-
 const database = require("./database");
 
-const getMoviesFunction = (req, res) => {
-  const id = parsInt(req.params.id);
+const getMovies = (req, res) => {
+  let baseSql = "SELECT * FROM movies";
+  const sqlValues = [];
+
+  if (req.query.color) {
+    sqlValues.push({
+      criteria: "color =",
+      value: req.query.color
+    });
+  }
+
+  if (req.query.max_duration) {
+    sqlValues.push({
+      criteria: "duration <=",
+      value: req.query.max_duration
+    });
+  }
 
   database
-    .query(`select * from movies where id = ${id}`)
+    .query(
+      sqlValues.reduce(
+        (sql, { criteria }, index) =>
+          `${sql} ${index === 0 ? "where" : "and"} ${criteria} ? `,
+          baseSql
+      ),
+      sqlValues.map(({ value }) => value)
+      )
     .then(([movies]) => {
       res.status(200).json(movies);
     })
@@ -15,129 +36,76 @@ const getMoviesFunction = (req, res) => {
     });
 };
 
-const getMovieByIdFunction = (req, res) => {
+const getMovieById = (req, res) => {
   const id = parseInt(req.params.id);
 
   database
-    .query("select * from movies where id = ?", [id])
-    .then(([movies]) => {
-      if (movies[0] != null) {
-        res.json(movies[0]);
-      } else {
-        res.status(404).send("Not Found");
-      }
+    .query('select * from movies where id = ?', [id])
+    .then(([movie]) => {
+      (movie[0]) ? res.status(200).json(movie[0]) : res.status(404).send('Not Found');
     })
     .catch((err) => {
-      console.error(err);
+      console.log(err);
       res.status(500).send("Error retrieving data from database");
-    });
+    })
 };
 
-const postMovieFunction = (req, res) => {
-  const { title, director, year, color, duration } = req.body;
-
+const addMovie = (req, res) => {
+  const {title, director, year, color, duration } = req.body;
+  
   database
     .query(
       "INSERT INTO movies(title, director, year, color, duration) VALUES (?, ?, ?, ?, ?)",
       [title, director, year, color, duration]
     )
     .then(([result]) => {
-      if (result.insertId) {
-        res.location("/api/movies/" + result.insertId).sendStatus(201);
-      } else {
-        res.status(404).send("Not Found");
-      }
+      res.location(`/api/movies/${result.insertId}`).sendStatus(201);
     })
     .catch((err) => {
       console.error(err);
       res.status(500).send("Error saving the movie");
     });
 };
-const updateMovie = (req, res) => {
 
+const updateMovie = (req, res) => {
   const id = parseInt(req.params.id);
 
-  const { title, director, year, color, duration } = req.body;
-
-
   database
-
     .query(
-
-      "update movies set title = ?, director = ?, year = ?, color = ?, duration = ? where id = ?",
-
+      "UPDATE movies SET title = ?, director = ?, year = ?, color = ?, duration = ? WHERE id = ?",
       [title, director, year, color, duration, id]
-
     )
-
     .then(([result]) => {
-
-      if (result.affectedRows === 0) {
-
-        res.status(404).send("Not Found");
-
-      } else {
-
-        res.sendStatus(204);
-
-      }
-
+      result.affectedRows ? res.sendStatus(204) : res.status(404).send("Not Found");
     })
-
     .catch((err) => {
-
       console.error(err);
-
       res.status(500).send("Error editing the movie");
-
     });
-
 };
 
 const deleteMovie = (req, res) => {
-
   const id = parseInt(req.params.id);
 
-
   database
-
-    .query("delete from movies where id = ?", [id])
-
+    .query(
+      "DELETE FROM movies WHERE id = ?",
+      [id]
+    )
     .then(([result]) => {
-
-      if (result.affectedRows === 0) {
-
-        res.status(404).send("Not Found");
-
-      } else {
-
-        res.sendStatus(204);
-
-      }
-
+      result.affectedRows ? res.sendStatus(204) : res.status(404).send("Not Found");
     })
-
     .catch((err) => {
-
       console.error(err);
-
       res.status(500).send("Error deleting the movie");
-
     });
-
-};
+}
 
 
 module.exports = {
-
   getMovies,
-
   getMovieById,
-
-  postMovie,
-
+  addMovie,
   updateMovie,
-
   deleteMovie,
-
 };
